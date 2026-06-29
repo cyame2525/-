@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP3 to MIDI Converter - 楽器検出・変換アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        main {
+            padding: 40px;
+        }
+
+        section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+        }
+
+        h2 {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .upload-box {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .btn-upload {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-upload:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .file-name {
+            margin-top: 15px;
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        canvas {
+            width: 100%;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            margin-top: 15px;
+            display: block;
+        }
+
+        .instruments-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .instrument-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #667eea;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .instrument-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .instrument-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .instrument-confidence {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background: #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+
+        .placeholder {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: #999;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+            color: white;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-success:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.5);
+        }
+
+        .progress-section {
+            margin-top: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #ddd;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .setting-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .setting-item label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .setting-item input[type="number"],
+        .setting-item input[type="range"],
+        .setting-item select {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .setting-item input:focus,
+        .setting-item select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .info-label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .info-value {
+            display: block;
+            font-size: 1.2em;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .message {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            main {
+                padding: 20px;
+            }
+
+            section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
+            h2 {
+                font-size: 1.3em;
+            }
+
+            .controls {
+                grid-template-columns: 1fr;
+            }
+
+            .instruments-list {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 MP3 to MIDI Converter</h1>
+            <p>MP3ファイルを分析して楽器を検出し、MIDIファイルに変換</p>
+        </header>
+
+        <main>
+            <div id="message" class="message"></div>
+
+            <!-- ファイルアップロードセクション -->
+            <section class="upload-section">
+                <div class="upload-box">
+                    <input type="file" id="audioFile" accept=".mp3,.wav,.m4a,.ogg" style="display:none;">
+                    <button class="btn-upload" onclick="selectAudioFile()">
+                        📁 MP3/WAVファイルを選択
+                    </button>
+                    <p id="fileName" class="file-name">ファイルが選択されていません</p>
+                </div>
+            </section>
+
+            <!-- 音声表示セクション -->
+            <section class="visualization-section">
+                <h2>📊 音声波形</h2>
+                <canvas id="waveformCanvas" width="800" height="200"></canvas>
+            </section>
+
+            <!-- 周波数分析セクション -->
+            <section class="analysis-section">
+                <h2>🔍 周波数分析</h2>
+                <canvas id="frequencyCanvas" width="800" height="250"></canvas>
+            </section>
+
+            <!-- 楽器検出セクション -->
+            <section class="instruments-section">
+                <h2>🎸 検出された楽器</h2>
+                <div id="instrumentsList" class="instruments-list">
+                    <p class="placeholder">楽器がまだ検出されていません</p>
+                </div>
+            </section>
+
+            <!-- 操作パネル -->
+            <section class="controls-section">
+                <div class="controls">
+                    <button id="playBtn" class="btn btn-primary" onclick="playAudio()" disabled>
+                        ▶ 再生
+                    </button>
+                    <button id="pauseBtn" class="btn btn-secondary" onclick="pauseAudio()" disabled>
+                        ⏸ 一時停止
+                    </button>
+                    <button id="analyzeBtn" class="btn btn-primary" onclick="analyzeAudio()" disabled>
+                        🔍 分析開始
+                    </button>
+                    <button id="convertBtn" class="btn btn-success" onclick="convertToMIDI()" disabled>
+                        💾 MIDIに変換
+                    </button>
+                </div>
+                <div class="progress-section" id="progressSection" style="display:none;">
+                    <p id="progressText">分析中...</p>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 設定セクション -->
+            <section class="settings-section">
+                <h2>⚙️ 設定</h2>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label for="bpmInput">BPM:</label>
+                        <input type="number" id="bpmInput" value="120" min="40" max="300">
+                    </div>
+                    <div class="setting-item">
+                        <label for="instrumentSelect">デフォルト楽器:</label>
+                        <select id="instrumentSelect">
+                            <option value="0">ピアノ</option>
+                            <option value="24">ギター</option>
+                            <option value="32">ベース</option>
+                            <option value="40">バイオリン</option>
+                            <option value="48">弦楽器</option>
+                            <option value="56">トランペット</option>
+                            <option value="71">クラリネット</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="sensitivityInput">感度:</label>
+                        <input type="range" id="sensitivityInput" min="0.1" max="1" step="0.1" value="0.5">
+                        <span id="sensitivityValue">0.5</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 出力情報 -->
+            <section class="info-section" id="infoSection" style="display:none;">
+                <h2>📈 分析結果</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">検出ノート数:</span>
+                        <span id="noteCount" class="info-value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">最高周波数:</span>
+                        <span id="maxFreq" class="info-value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">最低周波数:</span>
+                        <span id="minFreq" class="info-value">-</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>💡 ヒント: BandLabで使用するには、MIDIファイルをBandLabにアップロードしてください</p>
+        </footer>
+    </div>
+
+    <script>
+        // グローバル変数
+        let audioContext;
+        let analyser;
+        let audioBuffer;
+        let source;
+        let isPlaying = false;
+        let analysisData = {
+            frequencies: [],
+            peaks: [],
+            instruments: []
+        };
+
+        // メッセージ表示
+        function showMessage(text, type = 'info') {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = 'message ' + type;
+            setTimeout(() => {
+                messageEl.className = 'message';
+            }, 5000);
+        }
+
+        // 初期化
+        window.addEventListener('load', () => {
+            console.log('Page loaded');
+            initAudioContext();
+            setupEventListeners();
+        });
+
+        // Audio Context の初期化
+        function initAudioContext() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioCtx();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                analyser.smoothingTimeConstant = 0.8;
+                console.log('AudioContext initialized:', audioContext.state);
+                showMessage('準備完了：ファイルを選択してください', 'success');
+            } catch(e) {
+                console.error('Web Audio API error:', e);
+                showMessage('Web Audio APIに対応していません', 'error');
+            }
+        }
+
+        // イベントリスナーの設定
+        function setupEventListeners() {
+            const audioFileInput = document.getElementById('audioFile');
+            const sensitivityInput = document.getElementById('sensitivityInput');
+            
+            audioFileInput.addEventListener('change', handleFileUpload);
+            sensitivityInput.addEventListener('input', (e) => {
+                document.getElementById('sensitivityValue').textContent = e.target.value;
+            });
+        }
+
+        // ファイル選択処理
+        function selectAudioFile() {
+            document.getElementById('audioFile').click();
+        }
+
+        // ファイルアップロード処理
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            console.log('File selected:', file.name, file.size);
+            const fileName = file.name;
+            document.getElementById('fileName').textContent = '📄 ' + fileName;
+            showMessage('ファイルを読み込み中...', 'info');
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                console.log('File loaded');
+                decodeAudio(e.target.result);
+            };
+            reader.onerror = () => {
+                showMessage('ファイル読み込みエラー', 'error');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // オーディオデコード
+        function decodeAudio(arrayBuffer) {
+            if (!audioContext) {
+                showMessage('AudioContextが初期化されていません', 'error');
+                return;
+            }
+
+            console.log('Decoding audio...');
+            audioContext.decodeAudioData(
+                arrayBuffer,
+                (buffer) => {
+                    console.log('Audio decoded successfully');
+                    audioBuffer = buffer;
+                    enableControls();
+                    visualizeWaveform();
+                    showMessage('ファイルが読み込まれました！', 'success');
+                },
+                (error) => {
+                    console.error('Decode error:', error);
+                    showMessage('デコードエラー：' + error.message, 'error');
+                }
+            );
+        }
+
+        // 制御ボタンの有効化
+        function enableControls() {
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('analyzeBtn').disabled = false;
+            console.log('Controls enabled');
+        }
+
+        // 波形の可視化
+        function visualizeWaveform() {
+            const canvas = document.getElementById('waveformCanvas');
+            if (!canvas || !audioBuffer) return;
+            
+            const ctx = canvas.getContext('2d');
+            const data = audioBuffer.getChannelData(0);
+            
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            
+            const step = Math.ceil(data.length / canvas.width);
+            const amp = canvas.height / 2;
+            
+            for (let i = 0; i < canvas.width; i++) {
+                let min = 0, max = 0;
+                for (let j = i * step; j < (i + 1) * step && j < data.length; j++) {
+                    min = Math.min(min, data[j]);
+                    max = Math.max(max, data[j]);
+                }
+                
+                const y = amp + min * amp;
+                if (i === 0) {
+                    ctx.moveTo(i, y);
+                } else {
+                    ctx.lineTo(i, y);
+                }
+            }
+            
+            ctx.stroke();
+            console.log('Waveform visualized');
+        }
+
+        // 再生
+        function playAudio() {
+            if (!audioBuffer) {
+                showMessage('ファイルを選択してください', 'error');
+                return;
+            }
+
+            if (isPlaying) {
+                pauseAudio();
+                return;
+            }
+            
+            try {
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                
+                source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                
+                source.onended = () => {
+                    isPlaying = false;
+                    document.getElementById('pauseBtn').disabled = true;
+                };
+                
+                source.start(0);
+                isPlaying = true;
+                document.getElementById('pauseBtn').disabled = false;
+                console.log('Playback started');
+                showMessage('再生中...', 'info');
+            } catch(e) {
+                console.error('Play error:', e);
+                showMessage('再生エラー：' + e.message, 'error');
+            }
+        }
+
+        // 一時停止
+        function pauseAudio() {
+            if (source) {
+                try {
+                    source.stop();
+                    isPlaying = false;
+                    document.getElementById('pauseBtn').disabled = true;
+                    console.log('Playback stopped');
+                    showMessage('一時停止', 'info');
+                } catch(e) {
+                    console.log('Stop error (expected):', e.message);
+                }
+            }
+        }
+
+        // 分析開始
+        function analyzeAudio() {
+            if (!audioBuffer) {
+                showMessage('ファイルを選択してください', 'error');
+                return;
+            }
+            
+            console.log('Analysis started');
+            document.getElementById('progressSection').style.display = 'block';
+            document.getElementById('analyzeBtn').disabled = true;
+            showMessage('分析中...', 'info');
+            
+            setTimeout(() => performAnalysis(), 100);
+        }
+
+        // 分析処理
+        function performAnalysis() {
+            try {
+                const data = audioBuffer.getChannelData(0);
+                const sensitivity = parseFloat(document.getElementById('sensitivityInput').value);
+                
+                console.log('Performing FFT analysis...');
+                const frequencyData = performFFT(data);
+                analysisData.frequencies = frequencyData;
+                
+                console.log('Detecting peaks...');
+                const peaks = detectPeaks(frequencyData, sensitivity);
+                analysisData.peaks = peaks;
+                console.log('Peaks found:', peaks.length);
+                
+                updateProgress(50);
+                
+                console.log('Estimating instruments...');
+                const instruments = estimateInstruments(frequencyData, peaks);
+                analysisData.instruments = instruments;
+                
+                visualizeFrequency(frequencyData);
+                displayInstruments(instruments);
+                displayAnalysisInfo(frequencyData);
+                
+                updateProgress(100);
+                
+                setTimeout(() => {
+                    document.getElementById('progressSection').style.display = 'none';
+                    document.getElementById('convertBtn').disabled = false;
+                    document.getElementById('analyzeBtn').disabled = false;
+                    showMessage('分析完了！MIDIに変換できます', 'success');
+                }, 500);
+            } catch(e) {
+                console.error('Analysis error:', e);
+                showMessage('分析エラー：' + e.message, 'error');
+                document.getElementById('progressSection').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        }
+
+        // FFT処理
+        function performFFT(data) {
+            const fftSize = 2048;
+            const frequencies = new Array(fftSize / 2).fill(0);
+            
+            const numSamples = Math.min(Math.floor(data.length / fftSize), 5);
+            
+            for (let sample = 0; sample < numSamples; sample++) {
+                for (let i = 0; i < fftSize / 2; i++) {
+                    let real = 0, imag = 0;
+                    
+                    for (let k = 0; k < fftSize; k++) {
+                        const idx = sample * fftSize + k;
+                        if (idx >= data.length) break;
+                        
+                        const angle = -2 * Math.PI * i * k / fftSize;
+                        real += data[idx] * Math.cos(angle);
+                        imag += data[idx] * Math.sin(angle);
+                    }
+                    
+                    const magnitude = Math.sqrt(real * real + imag * imag);
+                    frequencies[i] += magnitude;
+                }
+            }
+            
+            return frequencies.map(f => f / numSamples);
+        }
+
+        // ピーク検出
+        function detectPeaks(frequencies, sensitivity) {
+            const peaks = [];
+            const maxFreq = Math.max(...frequencies);
+            const threshold = maxFreq * sensitivity;
+            
+            for (let i = 1; i < frequencies.length - 1; i++) {
+                if (frequencies[i] > frequencies[i - 1] && 
+                    frequencies[i] > frequencies[i + 1] && 
+                    frequencies[i] > threshold) {
+                    peaks.push({
+                        index: i,
+                        magnitude: frequencies[i],
+                        frequency: (i * 44100) / frequencies.length
+                    });
+                }
+            }
+            
+            return peaks.sort((a, b) => b.magnitude - a.magnitude).slice(0, 16);
+        }
+
+        // 楽器の推定
+        function estimateInstruments(frequencies, peaks) {
+            const instruments = [
+                { name: 'ピアノ', range: [20, 4000], confidence: 0 },
+                { name: 'ギター', range: [80, 3000], confidence: 0 },
+                { name: 'ベース', range: [20, 250], confidence: 0 },
+                { name: 'バイオリン', range: [195, 3000], confidence: 0 },
+                { name: 'トランペット', range: [165, 2000], confidence: 0 }
+            ];
+            
+            peaks.forEach(peak => {
+                instruments.forEach(instrument => {
+                    if (peak.frequency >= instrument.range[0] && 
+                        peak.frequency <= instrument.range[1]) {
+                        instrument.confidence += peak.magnitude;
+                    }
+                });
+            });
+            
+            const maxConfidence = Math.max(...instruments.map(i => i.confidence));
+            if (maxConfidence > 0) {
+                instruments.forEach(inst => {
+                    inst.confidence = (inst.confidence / maxConfidence) * 100;
+                });
+            }
+            
+            return instruments.filter(i => i.confidence > 5).sort((a, b) => b.confidence - a.confidence);
+        }
+
+        // 周波数の可視化
+        function visualizeFrequency(frequencies) {
+            const canvas = document.getElementById('frequencyCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#764ba2';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            const step = Math.ceil(frequencies.length / canvas.width);
+            const maxFreq = Math.max(...frequencies);
+            const scale = canvas.height / (maxFreq + 1);
+            
+            for (let i = 0; i < canvas.width; i++) {
+                const freq = frequencies[i * step] || 0;
+                const y = canvas.height - (freq * scale);
+                
+                if (i === 0) {
+                    ctx.moveTo(i, y);
+                } else {
+                    ctx.lineTo(i, y);
+                }
+            }
+            
+            ctx.stroke();
+            console.log('Frequency visualized');
+        }
+
+        // 楽器の表示
+        function displayInstruments(instruments) {
+            const container = document.getElementById('instrumentsList');
+            container.innerHTML = '';
+            
+            if (instruments.length === 0) {
+                container.innerHTML = '<p class="placeholder">楽器が検出されませんでした<br>感度を上げて試してください</p>';
+                return;
+            }
+            
+            instruments.forEach(inst => {
+                const card = document.createElement('div');
+                card.className = 'instrument-card';
+                card.innerHTML = `
+                    <div class="instrument-name">${inst.name}</div>
+                    <div class="instrument-confidence">信頼度: ${inst.confidence.toFixed(1)}%</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: ${inst.confidence}%"></div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 分析情報の表示
+        function displayAnalysisInfo(frequencies) {
+            const infoSection = document.getElementById('infoSection');
+            infoSection.style.display = 'block';
+            
+            const peakCount = analysisData.peaks.length;
+            const peakFreqs = analysisData.peaks.map(p => p.frequency);
+            const minF = peakFreqs.length > 0 ? Math.min(...peakFreqs) : 0;
+            const maxF = peakFreqs.length > 0 ? Math.max(...peakFreqs) : 0;
+            
+            document.getElementById('noteCount').textContent = peakCount;
+            document.getElementById('minFreq').textContent = minF.toFixed(1) + ' Hz';
+            document.getElementById('maxFreq').textContent = maxF.toFixed(1) + ' Hz';
+        }
+
+        // 進捗更新
+        function updateProgress(percentage) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            progressFill.style.width = percentage + '%';
+            progressText.textContent = `分析中... ${percentage}%`;
+        }
+
+        // MIDI変換
+        function convertToMIDI() {
+            if (analysisData.peaks.length === 0) {
+                showMessage('先に分析を実行してください', 'error');
+                return;
+            }
+            
+            try {
+                const bpm = parseInt(document.getElementById('bpmInput').value);
+                const instrumentNum = parseInt(document.getElementById('instrumentSelect').value);
+                
+                console.log('Generating MIDI...');
+                const midiData = generateMIDI(analysisData, bpm, instrumentNum);
+                downloadMIDI(midiData, 'converted_audio.mid');
+                
+                showMessage('✅ MIDIファイルが生成されダウンロードされました！', 'success');
+            } catch (error) {
+                console.error('MIDI generation error:', error);
+                showMessage('エラー：' + error.message, 'error');
+            }
+        }
+
+        // MIDI生成
+        function generateMIDI(analysisData, bpm, instrumentNum) {
+            const ticksPerBeat = 480;
+            const midiData = [];
+            
+            // ヘッダー
+            midiData.push(0x4D, 0x54, 0x68, 0x64); // "MThd"
+            midiData.push(0x00, 0x00, 0x00, 0x06);
+            midiData.push(0x00, 0x00);
+            midiData.push(0x00, 0x01);
+            midiData.push(0x01, 0xE0);
+            
+            const trackData = [];
+            
+            // テンポ
+            const microsecondsPerBeat = Math.round(60000000 / bpm);
+            trackData.push(0x00, 0xFF, 0x51, 0x03);
+            trackData.push((microsecondsPerBeat >> 16) & 0xFF);
+            trackData.push((microsecondsPerBeat >> 8) & 0xFF);
+            trackData.push(microsecondsPerBeat & 0xFF);
+            
+            // プログラムチェンジ
+            trackData.push(0x00, 0xC0, instrumentNum);
+            
+            // ノート
+            let currentTick = 0;
+            analysisData.peaks.slice(0, 16).forEach((peak, idx) => {
+                const note = frequencyToNote(peak.frequency);
+                const velocity = Math.min(127, Math.round(peak.magnitude * 10));
+                const duration = ticksPerBeat * 2;
+                
+                // ノートオン
+                trackData.push(0x00, 0x90, note, velocity);
+                
+                // ノートオフ
+                trackData.push(0x83, 0x60, 0x80, note, 0x40); // duration: 480
+            });
+            
+            // トラック終了
+            trackData.push(0x00, 0xFF, 0x2F, 0x00);
+            
+            // トラックヘッダー
+            midiData.push(0x4D, 0x54, 0x72, 0x6B);
+            midiData.push((trackData.length >> 24) & 0xFF);
+            midiData.push((trackData.length >> 16) & 0xFF);
+            midiData.push((trackData.length >> 8) & 0xFF);
+            midiData.push(trackData.length & 0xFF);
+            
+            midiData.push(...trackData);
+            
+            return new Uint8Array(midiData);
+        }
+
+        function frequencyToNote(frequency) {
+            if (frequency <= 0) return 60;
+            const noteNumber = Math.round(12 * Math.log2(frequency / 440)) + 69;
+            return Math.max(0, Math.min(127, noteNumber));
+        }
+
+        function downloadMIDI(midiData, filename) {
+            const blob = new Blob([midiData], { type: 'audio/midi' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            console.log('MIDI downloaded');
+        }
+    </script>
+</body>
+</html>
