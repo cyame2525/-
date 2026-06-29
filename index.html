@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP3 to MIDI - 楽器検出・変換アプリ</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 MP3 to MIDI Converter</h1>
+            <p>MP3ファイルを分析して楽器を検出し、MIDIファイルに変換</p>
+        </header>
+
+        <main>
+            <!-- ファイルアップロードセクション -->
+            <section class="upload-section">
+                <div class="upload-box">
+                    <input type="file" id="audioFile" accept=".mp3,.wav" style="display:none;">
+                    <button class="btn-upload" onclick="document.getElementById('audioFile').click()">
+                        📁 MP3/WAVファイルを選択
+                    </button>
+                    <p id="fileName" class="file-name">ファイルが選択されていません</p>
+                </div>
+            </section>
+
+            <!-- 音声表示セクション -->
+            <section class="visualization-section">
+                <h2>📊 音声波形</h2>
+                <canvas id="waveformCanvas" width="800" height="200"></canvas>
+            </section>
+
+            <!-- 周波数分析セクション -->
+            <section class="analysis-section">
+                <h2>🔍 周波数分析</h2>
+                <canvas id="frequencyCanvas" width="800" height="250"></canvas>
+            </section>
+
+            <!-- 楽器検出セクション -->
+            <section class="instruments-section">
+                <h2>🎸 検出された楽器</h2>
+                <div id="instrumentsList" class="instruments-list">
+                    <p class="placeholder">楽器がまだ検出されていません</p>
+                </div>
+            </section>
+
+            <!-- 操作パネル -->
+            <section class="controls-section">
+                <div class="controls">
+                    <button id="playBtn" class="btn btn-primary" onclick="playAudio()" disabled>
+                        ▶ 再生
+                    </button>
+                    <button id="pauseBtn" class="btn btn-secondary" onclick="pauseAudio()" disabled>
+                        ⏸ 一時停止
+                    </button>
+                    <button id="analyzeBtn" class="btn btn-primary" onclick="analyzeAudio()" disabled>
+                        🔍 分析開始
+                    </button>
+                    <button id="convertBtn" class="btn btn-success" onclick="convertToMIDI()" disabled>
+                        💾 MIDIに変換
+                    </button>
+                </div>
+                <div class="progress-section" id="progressSection" style="display:none;">
+                    <p id="progressText">分析中...</p>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 設定セクション -->
+            <section class="settings-section">
+                <h2>⚙️ 設定</h2>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label for="bpmInput">BPM:</label>
+                        <input type="number" id="bpmInput" value="120" min="40" max="300">
+                    </div>
+                    <div class="setting-item">
+                        <label for="instrumentSelect">デフォルト楽器:</label>
+                        <select id="instrumentSelect">
+                            <option value="0">ピアノ</option>
+                            <option value="24">ギター</option>
+                            <option value="32">ベース</option>
+                            <option value="40">バイオリン</option>
+                            <option value="48">弦楽器</option>
+                            <option value="56">トランペット</option>
+                            <option value="71">クラリネット</option>
+                            <option value="128">ドラムス</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="sensitivityInput">感度:</label>
+                        <input type="range" id="sensitivityInput" min="0.1" max="1" step="0.1" value="0.5">
+                        <span id="sensitivityValue">0.5</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 出力情報 -->
+            <section class="info-section" id="infoSection" style="display:none;">
+                <h2>📈 分析結果</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">検出周波数範囲:</span>
+                        <span id="frequencyRange" class="info-value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">平均周波数:</span>
+                        <span id="averageFreq" class="info-value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">ダイナミクスレンジ:</span>
+                        <span id="dynamics" class="info-value">-</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>💡 ヒント: BandLabで使用するには、MIDIファイルをBandLabにアップロードしてください</p>
+        </footer>
+    </div>
+
+    <!-- ライブラリのロード -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
